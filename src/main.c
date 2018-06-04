@@ -1,4 +1,3 @@
-
 /**
   ******************************************************************************
   * @file    main.c
@@ -13,9 +12,11 @@
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
 
+
 void ConfigureGpios()
 {
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA , ENABLE); // zegar dla portu GPIO z ktÛrego wykorzystany zostanie pin jako wejúcie ADC (PA1)
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD , ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA , ENABLE); // zegar dla portu GPIO z kt√≥rego wykorzystany zostanie pin jako wej≈ìcie ADC (PA1)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE); // zegar dla
 
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -31,8 +32,27 @@ void ConfigureGpios()
 	GPIO_InitStructure1.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure1.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOA, &GPIO_InitStructure1);
-}
 
+	GPIO_InitTypeDef GPIO_InitStructure2;
+		GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_14;
+		GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_OUT;
+		GPIO_InitStructure2.GPIO_OType = GPIO_OType_PP;
+		GPIO_InitStructure2.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_InitStructure2.GPIO_PuPd = GPIO_PuPd_NOPULL;
+		GPIO_Init(GPIOD, &GPIO_InitStructure2);
+
+}
+void ConfigureTimers()
+{
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+
+	TIM_TimeBaseStructure.TIM_Period = 33999;
+	TIM_TimeBaseStructure.TIM_Prescaler = 9999;
+	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Down ;
+	TIM_TimeBaseInit(TIM4, &TIM_TimeBaseStructure);
+}
 void ConfigureAdcs()
 {
 	ADC_InitTypeDef ADC_InitStructure;
@@ -70,21 +90,52 @@ int MeasureHumidity()
 	return VoltageToHumidityConversion((int)(10000*adcResult));
 }
 
+int isOutOfWater;
+int a=0;
+void PumpWater(int previousHumidity)
+{
+	GPIO_ResetBits(GPIOA,GPIO_Pin_3);
+	TIM_Cmd(TIM4, ENABLE);
+	if(TIM_GetFlagStatus(TIM4, TIM_FLAG_Update))
+	{
+				if(a==1)
+				{
+					int currentHumidity=MeasureHumidity();
+					if(currentHumidity==previousHumidity)
+					{
+						isOutOfWater=1;
+						GPIO_SetBits(GPIOA,GPIO_Pin_3);
+						GPIO_ToggleBits(GPIOD,GPIO_Pin_14);
+					}
+
+				}
+				a=1;
+				TIM_ClearFlag(TIM4, TIM_FLAG_Update);
+	}
+}
+
 void PumpControl(int humidity)
 {
 	if(humidity<50)
-		GPIO_ResetBits(GPIOA,GPIO_Pin_3);
+		PumpWater(humidity);
 	else
+	{
+		TIM_Cmd(TIM4, DISABLE);
+		a=0;
 		GPIO_SetBits(GPIOA,GPIO_Pin_3);
+	}
 }
 
 int main(void)
 {
+	ConfigureTimers();
 	ConfigureGpios();
 	ConfigureAdcs();
+	isOutOfWater=0;
 	for(;;)
 	{
 		int humidity = MeasureHumidity();
+		if(isOutOfWater==0)
 		PumpControl(humidity);
 	}
 }
