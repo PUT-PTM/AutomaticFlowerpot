@@ -16,7 +16,7 @@
 void ConfigureGpios()
 {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD , ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA , ENABLE); // zegar dla portu GPIO z którego wykorzystany zostanie pin jako wejœcie ADC (PA1)
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA , ENABLE); // zegar dla portu GPIO z którego wykorzystany zostanie pin jako wejcie ADC (PA1)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE); // zegar dla
 
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -34,7 +34,7 @@ void ConfigureGpios()
 	GPIO_Init(GPIOA, &GPIO_InitStructure1);
 
 	GPIO_InitTypeDef GPIO_InitStructure2;
-		GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_14;
+		GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_14;
 		GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_OUT;
 		GPIO_InitStructure2.GPIO_OType = GPIO_OType_PP;
 		GPIO_InitStructure2.GPIO_Speed = GPIO_Speed_100MHz;
@@ -47,7 +47,7 @@ void ConfigureTimers()
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 
-	TIM_TimeBaseStructure.TIM_Period = 33999;
+	TIM_TimeBaseStructure.TIM_Period = 63999;
 	TIM_TimeBaseStructure.TIM_Prescaler = 9999;
 	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Down ;
@@ -73,7 +73,7 @@ void ConfigureAdcs()
 int VoltageToHumidityConversion(int temp)
 {
 	double voltage=(double)temp/10000;
-	const double maxHumidity = 1.48;
+	const double maxHumidity = 0.8;
 	const double minHumidity = 2.95;
 
 	int humidity = 100*(1-(voltage-maxHumidity)/(minHumidity-maxHumidity));
@@ -105,7 +105,7 @@ void PumpWater(int previousHumidity)
 					{
 						isOutOfWater=1;
 						GPIO_SetBits(GPIOA,GPIO_Pin_3);
-						GPIO_ToggleBits(GPIOD,GPIO_Pin_14);
+						GPIO_SetBits(GPIOD,GPIO_Pin_14 | GPIO_Pin_3);
 					}
 
 				}
@@ -116,7 +116,7 @@ void PumpWater(int previousHumidity)
 
 void PumpControl(int humidity)
 {
-	if(humidity<50)
+	if(humidity<65)
 		PumpWater(humidity);
 	else
 	{
@@ -136,6 +136,9 @@ int main(void)
 	{
 		int humidity = MeasureHumidity();
 		if(isOutOfWater==0)
-		PumpControl(humidity);
+		{
+			int humidity = MeasureHumidity();
+			PumpControl(humidity);
+		}
 	}
 }
