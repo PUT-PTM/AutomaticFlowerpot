@@ -40,7 +40,7 @@ Cable from 12V power source has to go through middle and normally open contact.
 
 RGB diode module | Stm32
 ------------ | -------------
-Red Color Contact | GPIOPD3
+Red/Blue/Greeb Color Contact | GPIOPD3
 GND | GND
 
 Humidity level at which pump is turned on can be set via IDE, before compiling.
